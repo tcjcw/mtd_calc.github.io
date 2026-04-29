@@ -563,6 +563,32 @@ input[type=number] {
   </div>
 </div>
 
+<!-- Sheet Selector Modal -->
+<div class="modal fade" id="sheetSelectorModal" tabindex="-1" aria-labelledby="sheetSelectorLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="sheetSelectorLabel"><i class="bi bi-file-earmark-excel me-2"></i>Select Sheets to Import</h5>
+        <button type="button" class="btn-close" id="sheetSelectorClose" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">This workbook contains multiple sheets. Choose which sheets to import.</p>
+        <div class="d-flex gap-2 mb-3">
+          <button class="btn btn-sm btn-outline-secondary" id="sheetSelectAll">Select all</button>
+          <button class="btn btn-sm btn-outline-secondary" id="sheetSelectNone">Deselect all</button>
+        </div>
+        <div id="sheetCheckboxList" class="d-flex flex-column gap-2"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="sheetSelectorCancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="sheetSelectorConfirm" style="background-color:#4c3470;border-color:#4c3470;">
+          <i class="bi bi-upload me-1"></i> Import Selected
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
@@ -833,7 +859,7 @@ function importRecords(e){
 
  const reader = new FileReader();
 
- function processCSVText(text){
+ function processCSVText(text, silent = false){
    const cleaned = text.trim();
    const lines = cleaned.split(/\r?\n/);
    if(lines.length < 2){
@@ -883,35 +909,86 @@ function importRecords(e){
    renderSummary();
    renderPivotTable(records);
 
-   alert(`${added} new records imported`);
+   if(!silent) alert(`${added} new records imported`);
  }
 
- // Excel file (xlsx/xls) -> ask user to choose sheet
+ // Excel file (xlsx/xls) -> show sheet selector modal
  if(file.name.match(/\.(xlsx|xls|xlsm)$/i)){
    reader.onload = function(evt){
      const data = new Uint8Array(evt.target.result);
      const workbook = XLSX.read(data, {type: 'array'});
      const sheetNames = workbook.SheetNames;
-     if(!sheetNames || sheetNames.length===0){
+     if(!sheetNames || sheetNames.length === 0){
        alert("No sheets found in workbook");
        return;
      }
 
-     let sheetIndex = 0;
-     if(sheetNames.length > 1){
-       const choices = sheetNames.map((s,i)=>`${i+1}) ${s}`).join("\n");
-       const ans = prompt(`Select sheet to import:\n${choices}\nEnter sheet number:`);
-       if(ans === null) return;
-       sheetIndex = parseInt(ans,10) - 1;
-       if(isNaN(sheetIndex) || sheetIndex < 0 || sheetIndex >= sheetNames.length){
-         alert("Invalid sheet selection");
-         return;
-       }
+     // If only one sheet, import it directly without showing the modal
+     if(sheetNames.length === 1){
+       const csv = XLSX.utils.sheet_to_csv(workbook.Sheets[sheetNames[0]]);
+       processCSVText(csv);
+       return;
      }
 
-     const sheet = workbook.Sheets[sheetNames[sheetIndex]];
-     const csv = XLSX.utils.sheet_to_csv(sheet);
-     processCSVText(csv);
+     // Populate the sheet checkbox list
+     const list = document.getElementById('sheetCheckboxList');
+     list.innerHTML = '';
+     sheetNames.forEach((name, i) => {
+       const id = `sheetCheck_${i}`;
+       const wrapper = document.createElement('div');
+       wrapper.className = 'form-check';
+       wrapper.innerHTML = `
+         <input class="form-check-input sheet-checkbox" type="checkbox" value="${i}" id="${id}" checked>
+         <label class="form-check-label" for="${id}">${name}</label>`;
+       list.appendChild(wrapper);
+     });
+
+     // Select all / deselect all buttons
+     document.getElementById('sheetSelectAll').onclick = () =>
+       list.querySelectorAll('.sheet-checkbox').forEach(cb => cb.checked = true);
+     document.getElementById('sheetSelectNone').onclick = () =>
+       list.querySelectorAll('.sheet-checkbox').forEach(cb => cb.checked = false);
+
+     // Show the modal
+     const modal = new bootstrap.Modal(document.getElementById('sheetSelectorModal'));
+     modal.show();
+
+     // Cancel / close — reset the file input and hide
+     const cancelHandler = () => {
+       modal.hide();
+       e.target.value = '';
+     };
+     document.getElementById('sheetSelectorCancel').onclick = cancelHandler;
+     document.getElementById('sheetSelectorClose').onclick = cancelHandler;
+
+     // Confirm — import all checked sheets
+     document.getElementById('sheetSelectorConfirm').onclick = () => {
+       const checked = [...list.querySelectorAll('.sheet-checkbox:checked')];
+       if(checked.length === 0){
+         alert("Please select at least one sheet to import.");
+         return;
+       }
+
+       let totalAdded = 0;
+       checked.forEach(cb => {
+         const sheet = workbook.Sheets[sheetNames[parseInt(cb.value)]];
+         const csv = XLSX.utils.sheet_to_csv(sheet);
+         const before = records.length;
+         processCSVText(csv, true);
+         totalAdded += records.length - before;
+       });
+
+       modal.hide();
+       e.target.value = '';
+
+       renderTable('income');
+       renderTable('expense');
+       renderSummary();
+       renderPivotTable(records);
+
+       const sheetWord = checked.length === 1 ? 'sheet' : 'sheets';
+       alert(`Imported ${checked.length} ${sheetWord} — ${totalAdded} new record(s) added.`);
+     };
    };
    reader.readAsArrayBuffer(file);
  } else {
@@ -996,7 +1073,7 @@ function addSingleRecord(type, dateOverride) {
     }
   }
 
-  if(!r.amount || !r.date) return alert("Enter date and amount");
+ if(!r.amount || !r.date) return alert("Enter date and amount");
   
   if (records.length === 0) {
     // No existing records — this is the first record
@@ -1027,9 +1104,9 @@ function addSingleRecord(type, dateOverride) {
     }
   };
 
-  records.push(r);
-  save();
-  return true
+ records.push(r);
+ save();
+ return true
 }
 
 function deleteRecord(id){
