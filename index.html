@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Making Tax Digital Calculator</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<style>
+:root {
+  --bs-primary: #4c3470;
+  --bs-secondary: #366954;
+  --bs-danger: #bb473d;
+  --bs-dark: #d9d9d9;
+  --bs-light: #efefef;
+}
+.btn-outline-purple{
+  color:#4c3470;
+  border-color:#4c3470;
+  background-color:transparent;
+}
+
+.btn-outline-purple:hover{
+  color:white;
+  background-color:#4c3470;
+  border-color:#4c3470;
+}
+
+.btn-outline-purple:active{
+  background-color:#3b2857;
+  border-color:#3b2857;
+}
+
+.numeric-col {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.numeric-col .form-control,
+.numeric-col,
+.numeric-col input {
+  text-align: right;
+}
+
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield;
+}
+</style>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+
+    <h1 class="mb-4" id="page_title">Making Tax Digital Calculator</h1>
+
+<!-- TABS -->
+    <ul class="nav nav-tabs mb-3" id="tabs">
+        <li class="nav-item">
+            <button class="nav-link active" onclick="showTab('dashboard',this)">Dashboard</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="showTab('income',this)">Income</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" onclick="showTab('expense',this)">Expenses</button>
+        </li>
+        <li class="nav-item ms-auto">
+            <!-- <button class="btn btn-primary" onclick="exportCSV()"><i class="bi bi-save"></i> Save</button> -->
+              <label class="btn btn-outline-purple m-0">
+                  <i class="bi bi-upload me-1"></i> Load progress
+                  <input type="file" hidden accept=".csv,.xls,.xlsx,.xlsm,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importRecords(event)">
+              </label>
+            <button class="btn btn-primary" style="background-color:#4c3470;border-color:#4c3470;" onclick="exportExcel()"><i class="bi bi-file-earmark-excel"></i> Save to Excel</button>
+            <!-- <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#instructionsModal">Instructions</button> -->
+        </li>
+    </ul>
+
+<!-- DASHBOARD -->
+    <div id="dashboard" class="tab card p-4 shadow-sm">
+    <div class="alert alert-warning" role="alert">
+    ⚠️ Remember to download your records regularly. Closing the page may lose unsaved changes.
+    </div>
+        <h4 id="summary_header">Summary</h4>
+
+        <div id="summary" class="fs-5 mt-3"></div>
+
+        <div class="card mt-4">
+            <div class="card-body">
+                <h3 class="card-title">Quarterly Summary</h3>
+                <div id="pivotTableContainer"></div>
+            </div>
+        </div>
+    </div>
+
+<!-- INCOME -->
+    <div id="income" class="tab card p-4 shadow-sm" style="display:none">
+        <div class="alert alert-warning" role="alert">
+        ⚠️ Remember to download your records regularly. Closing the page may lose unsaved changes.
+        </div>
+        <h4 class="mb-3">Add New Income</h4>
+<!-- Fields -->
+        <div class="row g-2 mb-3">
+        <div class="col-md-2">
+          <label for="income_date" class="form-label">Income Date</label>
+          <input id="income_date" type="date" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label for="income_amount_group" class="form-label">Income Amount</label>
+          <div class="input-group md-3" id="income_amount_group">
+              <div class="input-group-prepend">
+                <span class="input-group-text">£</span>
+              </div>
+              <input id="income_amount" type="number" class="form-control" placeholder="Amount" min="0">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label for="empee_group" class="form-label">Employee Pension Amount</label>
+          <div class="input-group md-3" id="empee_group">
+            <div class="input-group-prepend">
+              <span class="input-group-text">£</span>
+            </div>
+            <input id="empee" type="number" class="form-control" placeholder="EmpEE Pension" min="0">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label for="emper_group" class="form-label">Employer Pension Amount</label>
+          <div class="input-group md-3" id="emper_group">
+              <div class="input-group-prepend">
+                <span class="input-group-text">£</span>
+              </div>
+              <input id="emper" type="number" class="form-control" placeholder="EmpER Pension" min="0">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label for="income_notes" class="form-label">Notes (e.g. employment name)</label>
+          <input id="income_notes" type="text" class="form-control" placeholder="Notes">
+        </div>
+        </div>
+<!-- Recurring Income -->
+        <div class="row g-2 mb-3">
+          <div class="col-12">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <div class="form-check form-check-inline mb-0">
+                <input class="form-check-input" type="checkbox" value="" id="income_recurringCheck" onchange="makeRecurring(this, 'income')">
+                <label class="form-check-label" for="income_recurringCheck">Make recurring</label>
+              </div>
+              <span id="income_recurringOptions" style="display:none;">
+                <span class="me-1">every</span>
+                <select id="income_frequency" class="form-select form-select-sm d-inline-block" style="width:auto;">
+                  <option value="day">day</option>
+                  <option value="weekday">weekday (Mon-Fri)</option>
+                  <option value="week">week</option>
+                  <option value="month">month</option>
+                  <option value="year">year</option>
+                </select>
+                <span class="mx-1" id="income_freq_on" style="display:none;">on</span>
+                <select id="income_frequency_day" class="form-select form-select-sm align-middle" style="width:auto; display:none;">
+                  <option value="mon">Monday</option>
+                  <option value="tue">Tuesday</option>
+                  <option value="wed">Wednesday</option>
+                  <option value="thu">Thursday</option>
+                  <option value="fri">Friday</option>
+                  <option value="sat">Saturday</option>
+                  <option value="sun">Sunday</option>
+                </select>
+                <select id="income_frequency_dom_choice" class="form-select form-select-sm align-middle" style="width:auto; display:none; margin-left:6px;">
+                  <option value="1">1st</option>
+                  <option value="2">2nd</option>
+                  <option value="3">3rd</option>
+                  <option value="4">4th</option>
+                  <option value="5">5th</option>
+                  <option value="6">6th</option>
+                  <option value="7">7th</option>
+                  <option value="8">8th</option>
+                  <option value="9">9th</option>
+                  <option value="10">10th</option>
+                  <option value="11">11th</option>
+                  <option value="12">12th</option>
+                  <option value="13">13th</option>
+                  <option value="14">14th</option>
+                  <option value="15">15th</option>
+                  <option value="16">16th</option>
+                  <option value="17">17th</option>
+                  <option value="18">18th</option>
+                  <option value="19">19th</option>
+                  <option value="20">20th</option>
+                  <option value="21">21th</option>
+                  <option value="22">22th</option>
+                  <option value="23">23th</option>
+                  <option value="24">24th</option>
+                  <option value="25">25th</option>
+                  <option value="26">26th</option>
+                  <option value="27">27th</option>
+                  <option value="28">28th</option>
+                  <option value="29">29th</option>
+                  <option value="30">30th</option>
+                  <option value="31">last</option>
+                </select>
+                <span class="mx-1" id="income_frequency_dom" style="display: none;">day of the month</span>
+                <span class="mx-1">until</span>
+                <input id="income_frequency_end_date" type="date" class="form-control form-control-sm d-inline-block" style="width:auto;">
+              </span>
+            </div>
+          </div>
+        </div>
+<!-- Buttons -->
+        <div class="row g-2 mb-3">
+            <div class="col-md-auto">
+                <button class="btn btn-primary" style="background-color:#366954;border-color:#366954;" onclick="addRecord('income')"><i class="bi bi-plus"></i> Add Income</button>
+            </div>
+            <!-- <div class="col-md-auto">
+                <label class="btn btn-outline-secondary m-0">
+                    <i class="bi bi-upload me-1"></i> Upload existing file
+                    <input type="file" hidden accept=".csv,.xls,.xlsx,.xlsm,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importRecords(event)">
+                </label>
+            </div> -->
+        </div>
+<!-- Records -->
+        <h4 class="mb-3" id="income_header">Income Records</h4>
+        <table class="table table-sm" id="incomeTable">
+        <thead>
+            <tr>
+            <th style="width:1%; white-space:nowrap; text-align:left;">
+                Date
+                <select class="form-select form-select-sm" id="income_filterQuarter">
+                  <option value="">All Quarters</option>
+                </select>
+            </th>
+            <th class="numeric-col text-end">Income Amount</th>
+            <th class="numeric-col text-end">EmpEE Pension</th>
+            <th class="numeric-col text-end">EmpER Pension</th>
+            <th>Notes <input type="text" class="form-control form-control-sm" id="income_filterNotes" placeholder="Filter"></th>
+            <th class="numeric-col">
+              <button class="btn btn-sm btn-outline-secondary" onclick="clearFilters('income')">Clear Filters</button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteAllRecords('income')">Delete All</button>
+            </th>
+            </tr>
+        </thead>
+        <tbody id="income_tableBody"></tbody>
+        </table>
+    </div>
+
+<!-- EXPENSES -->
+    <div id="expense" class="tab card p-4 shadow-sm" style="display:none">
+        <div class="alert alert-warning" role="alert">
+        ⚠️ Remember to download your records regularly. Closing the page may lose unsaved changes.
+        </div>
+        <h4 class="mb-3">Add New Expenses</h4>
+<!-- Fields --> 
+        <div class="row g-2 mb-3">
+        <div class="col-md-3">
+          <label for="category" class="form-label">Expense Category</label>
+          <select id="category" class="form-select">
+            <option value="Other">Other</option>
+            <option value="Mileage">Car Travel</option>
+            <option value="Travel">Non-Car Travel</option>
+            <option value="Prof. Fees">Prof. Fees</option>
+            <option value="Office">Office</option>
+            <option value="Rent/Bills">Rent/Bills</option>
+            <option value="Banking">Banking</option>
+            <option value="Repairs">Repairs</option>
+            <option value="Goods Sold">Goods Sold</option>
+            <option value="Staffing">Staffing</option>
+            <option value="Advertising">Advertising</option>
+            <option value="Insurance">Insurance</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="expense_date" class="form-label">Expense Date</label>
+          <input id="expense_date" type="date" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label for="expense_amount_group" class="form-label" id="expense_amount_label">Total Amount</label>
+          <div class="input-group md-3" id="expense_amount_group">
+              <div class="input-group-prepend">
+                <span class="input-group-text">£</span>
+              </div>
+              <input id="expense_amount" type="number" class="form-control" placeholder="Amount" min="0">
+          </div>          
+          <label for="miles_group" class="form-label" id="miles_label" style="display:none;">Miles Driven</label>
+          <div class="input-group md-3" id="miles_group" style="display:none;">
+              <input id="miles" type="number" class="form-control" placeholder="Miles" min="0">
+          </div>
+        </div>
+        <div class="col-md-3">
+          <label for="expense_percentage_group" class="form-label" id="expense_percentage_label">Claimable Percentage</label>
+          <div class="input-group md-3" id="expense_percentage_group">
+          <input id="expense_percentage" type="number" class="form-control" placeholder="Percentage" value="100" min="0" max="100">
+            <div class="input-group-append">
+              <span class="input-group-text">%</span>
+            </div>
+          </div>
+          <label for="passengers_group" class="form-label" id="passengers_label" style="display:none;">Passengers (including yourself)</label>
+          <div class="input-group md-3" id="passengers_group" style="display:none;">
+          <input id="passengers" type="number" class="form-control" placeholder="Passenger" value="1" min="1">
+          </div>
+        </div>
+        <div class="col-md-4">
+          <label for="expense_notes" class="form-label">Notes (e.g. expense name)</label>
+          <input id="expense_notes" type="text" class="form-control" placeholder="Notes">
+        </div>
+<!-- Recurring Expense -->
+        <div class="row g-2 mb-3">
+          <div class="col-12">
+            <div class="d-flex flex-wrap align-items-center gap-2">
+              <div class="form-check form-check-inline mb-0">
+                <input class="form-check-input" type="checkbox" value="" id="expense_recurringCheck" onchange="makeRecurring(this, 'expense')">
+                <label class="form-check-label" for="expense_recurringCheck">Make recurring</label>
+              </div>
+              <span id="expense_recurringOptions" style="display:none;">
+                <span class="me-1">every</span>
+                <select id="expense_frequency" class="form-select form-select-sm d-inline-block" style="width:auto;">
+                  <option value="day">day</option>
+                  <option value="weekday">weekday (Mon-Fri)</option>
+                  <option value="week">week</option>
+                  <option value="month">month</option>
+                  <option value="year">year</option>
+                </select>
+                <span class="mx-1" id="expense_freq_on" style="display:none;">on</span>
+                <select id="expense_frequency_day" class="form-select form-select-sm align-middle" style="width:auto; display:none;">
+                  <option value="mon">Monday</option>
+                  <option value="tue">Tuesday</option>
+                  <option value="wed">Wednesday</option>
+                  <option value="thu">Thursday</option>
+                  <option value="fri">Friday</option>
+                  <option value="sat">Saturday</option>
+                  <option value="sun">Sunday</option>
+                </select>
+                <select id="expense_frequency_dom_choice" class="form-select form-select-sm align-middle" style="width:auto; display:none; margin-left:6px;">
+                  <option value="1">1st</option>
+                  <option value="2">2nd</option>
+                  <option value="3">3rd</option>
+                  <option value="4">4th</option>
+                  <option value="5">5th</option>
+                  <option value="6">6th</option>
+                  <option value="7">7th</option>
+                  <option value="8">8th</option>
+                  <option value="9">9th</option>
+                  <option value="10">10th</option>
+                  <option value="11">11th</option>
+                  <option value="12">12th</option>
+                  <option value="13">13th</option>
+                  <option value="14">14th</option>
+                  <option value="15">15th</option>
+                  <option value="16">16th</option>
+                  <option value="17">17th</option>
+                  <option value="18">18th</option>
+                  <option value="19">19th</option>
+                  <option value="20">20th</option>
+                  <option value="21">21th</option>
+                  <option value="22">22th</option>
+                  <option value="23">23th</option>
+                  <option value="24">24th</option>
+                  <option value="25">25th</option>
+                  <option value="26">26th</option>
+                  <option value="27">27th</option>
+                  <option value="28">28th</option>
+                  <option value="29">29th</option>
+                  <option value="30">30th</option>
+                  <option value="31">last</option>
+                </select>
+                <span class="mx-1" id="expense_frequency_dom" style="display: none;">day of the month</span>
+                <span class="mx-1">until</span>
+                <input id="expense_frequency_end_date" type="date" class="form-control form-control-sm d-inline-block" style="width:auto;">
+              </span>
+            </div>
+          </div>
+        </div>
+<!-- Buttons -->
+        <div class="row g-2 mb-3">
+            <div class="col-md-auto">
+                <button class="btn btn-primary" style="background-color:#bb473d;border-color:#bb473d;" onclick="addRecord('expense')"><i class="bi bi-plus"></i> Add Expense</button>
+            </div>
+            <!-- <div class="col-md-auto">
+                <label class="btn btn-outline-secondary m-0">
+                    <i class="bi bi-upload me-1"></i> Upload existing file
+                    <input type="file" hidden accept=".csv,.xls,.xlsx,.xlsm,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onchange="importRecords(event)">
+                </label>
+            </div> -->
+        </div>        
+<!-- Records -->
+        <h4 class="mb-3" id="expense_header">Expense Records</h4>
+        <table class="table table-sm" id="expenseTable">
+        <thead>
+            <tr>
+            <th style="width:1%; white-space:nowrap; text-align:left;">
+                Date
+                <select class="form-select form-select-sm" id="expense_filterQuarter">
+                  <option value="">All Quarters</option>
+                </select>
+            </th>
+            <th class="numeric-col text-end">Total Amount</th>
+            <th class="numeric-col text-end">Percentage</th>
+            <th class="numeric-col text-end">Claimable Amount</th>
+            <th>Category <select id="expense_filterCategory" class="form-select form-select-sm mb-1" value="">
+              <option value=""></option>
+              <option value="Other">Other</option>
+              <option value="Travel">Travel</option>
+              <option value="Prof. Fees">Prof. Fees</option>
+              <option value="Office">Office</option>
+              <option value="Rent/Bills">Rent/Bills</option>
+              <option value="Banking">Banking</option>
+              <option value="Repairs">Repairs</option>
+              <option value="Goods Sold">Goods Sold</option>
+              <option value="Staffing">Staffing</option>
+              <option value="Advertising">Advertising</option>
+              <option value="Insurance">Insurance</option>
+            </select></th>
+            <th>Notes <input type="text" class="form-control form-control-sm" id="expense_filterNotes" placeholder="Filter"></th>
+            <th class="numeric-col">
+              <button class="btn btn-sm btn-outline-secondary" onclick="clearFilters('expense')">Clear Filters</button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteAllRecords('expense')">Delete All</button>
+            </th>
+            </tr>
+        </thead>
+        <tbody id="expense_tableBody"></tbody>
+        </table>
+    </div>    
+</div>
+
+<!-- Instructions -->
+<div class="modal fade" id="instructionsModal" tabindex="-1" aria-labelledby="instructionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="instructionsModalLabel">Instructions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="nav nav-tabs" id="instrTabs" role="tablist">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="instr-dashboard-tab" data-bs-toggle="tab" data-bs-target="#instr-dashboard" type="button" role="tab" aria-controls="instr-dashboard" aria-selected="true">Dashboard</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="instr-income-tab" data-bs-toggle="tab" data-bs-target="#instr-income" type="button" role="tab" aria-controls="instr-income" aria-selected="false">Income</button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link" id="instr-expense-tab" data-bs-toggle="tab" data-bs-target="#instr-expense" type="button" role="tab" aria-controls="instr-expense" aria-selected="false">Expenses</button>
+          </li>
+        </ul>
+
+        <div class="tab-content pt-3">
+          <div class="tab-pane fade show active" id="instr-dashboard" role="tabpanel" aria-labelledby="instr-dashboard-tab">
+            <h6>Dashboard</h6>
+            <p>Overview of totals and quarterly pivot.</p>
+          </div>
+
+          <div class="tab-pane fade" id="instr-income" role="tabpanel" aria-labelledby="instr-income-tab">
+            <h6>Income</h6>
+            <p>
+              Add income records here. Fill date, amount and optional pension fields. 
+              Use "Make recurring" to generate repeated records. 
+              Use the upload button to import files saved from this app.</p>
+          </div>
+
+          <div class="tab-pane fade" id="instr-expense" role="tabpanel" aria-labelledby="instr-expense-tab">
+            <h6>Expenses</h6>
+            <p>
+              Add expense records with claimable percentage and category according to HMRC.
+              Use "Make recurring" to generate repeated records.  
+              Use the upload button to import files saved from this app.</p>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+<script>
+let records = JSON.parse(localStorage.getItem("allRecords")||"[]");
+let activeTaxYear = (() => {
+  if (records.length === 0) return null;
+  const d = new Date(records[0].date);
+  const year = d.getFullYear();
+  const start = d >= new Date(year, 3, 6)
+    ? new Date(year, 3, 6)
+    : new Date(year - 1, 3, 6);
+  const end = new Date(start.getFullYear() + 1, 3, 5);
+  return { start, end, label: `${start.getFullYear()}/${end.getFullYear()}` };
+})();
+
+// Utility functions
+function save(){
+  localStorage.setItem("allRecords",JSON.stringify(records));
+}
+
+function showTab(id,btn){
+  document.querySelectorAll(".tab").forEach(t=>t.style.display="none");
+  document.getElementById(id).style.display="block";
+
+  document.querySelectorAll(".nav-link").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+
+  clearFilters('income');
+  clearFilters('expense');
+  toggleExpenseInputs();
+  renderSummary();
+  renderPivotTable(records);
+}
+
+function makeID(){
+  return "ID-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2,6);
+}
+
+function update(id, field, val){
+  if(["amount","emper","empee"].includes(field)) val = Number(val);
+
+  const record = records.find(r => r.id === id);
+  if(!record) return;
+
+  record[field] = val;
+
+  save();
+  renderTable(record["type"]);
+  renderSummary();
+  renderPivotTable(records);
+}
+
+function getTaxYearForDate(date) {
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const taxYearStart = d >= new Date(year, 3, 6)
+    ? new Date(year, 3, 6)
+    : new Date(year - 1, 3, 6);
+  const taxYearEnd = new Date(taxYearStart.getFullYear() + 1, 3, 5);
+  const label = `${taxYearStart.getFullYear()}/${taxYearEnd.getFullYear()}`;
+  return { start: taxYearStart, end: taxYearEnd, label };
+}
+
+function getCurrentTaxYear() {
+  return getTaxYearForDate(new Date());
+}
+
+function updateTaxYearHeader() {
+  var header = document.getElementById("page_title");
+  if (header && activeTaxYear) {
+    header.textContent = `Making Tax Digital Calculator ${activeTaxYear.label}`;
+  }
+  header = document.getElementById("summary_header");
+  if (header && activeTaxYear) {
+    header.textContent = `${activeTaxYear.label} Summary`;
+  }
+  header = document.getElementById("income_header");
+  if (header && activeTaxYear) {
+    header.textContent = `${activeTaxYear.label} Income Records`;
+  }
+  header = document.getElementById("expense_header");
+  if (header && activeTaxYear) {
+    header.textContent = `${activeTaxYear.label} Expense Records`;
+  }
+}
+
+function getQuarter(dateStr){
+  if(!dateStr) return "";
+
+  const d = new Date(dateStr);
+
+  const year = d.getFullYear();
+  const month = d.getMonth(); // 0-based
+  const day = d.getDate();
+
+  // Determine tax year start (year of April 6)
+  let taxYearStart = year;
+  if (month < 3 || (month === 3 && day < 6)) {
+    taxYearStart = year - 1;
+  }
+
+  const nextYear = taxYearStart + 1;
+
+  // Build tax year label like 26/27
+  const label = `${String(taxYearStart).slice(-2)}/${String(nextYear).slice(-2)}`;
+
+  // Create boundary dates
+  const q1Start = new Date(taxYearStart, 3, 6);   // Apr 6
+  const q2Start = new Date(taxYearStart, 6, 6);   // Jul 6
+  const q3Start = new Date(taxYearStart, 9, 6);   // Oct 6
+  const q4Start = new Date(nextYear, 0, 6);       // Jan 6
+
+  if (d >= q1Start && d < q2Start) return `Q1 ${label}`;
+  if (d >= q2Start && d < q3Start) return `Q2 ${label}`;
+  if (d >= q3Start && d < q4Start) return `Q3 ${label}`;
+  return `Q4 ${label}`;
+}
+
+function populateQuarterFilters(){
+  const quarters = [...new Set(records.map(r => getQuarter(r.date)))].sort();
+
+  ["income","expense"].forEach(table=>{
+    const select = document.getElementById(`${table}_filterQuarter`);
+    if(!select) return;
+
+    const current = select.value;
+
+    select.innerHTML = `<option value="">All Quarters</option>`;
+
+    quarters.forEach(q=>{
+      const opt = document.createElement("option");
+      opt.value = q;
+      opt.textContent = q;
+      select.appendChild(opt);
+    });
+
+    select.value = current;
+  });
+}
+
+function makeRecurring(checkbox, type){
+  if(checkbox.checked){
+    document.getElementById(`${type}_recurringOptions`).style.display = "inline-block";
+  } else {
+    document.getElementById(`${type}_recurringOptions`).style.display = "none";
+  }
+}
+
+function getNextDate(dateStr, frequency, dayOfWeek, dayOfMonth) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const date = new Date(y, m - 1, d); // local date, no timezone shift
+
+  if (frequency === "day") {
+    date.setDate(date.getDate() + 1);
+  } else if (frequency === "weekday") {
+    do {
+      date.setDate(date.getDate() + 1);
+    } while (date.getDay() === 0 || date.getDay() === 6);
+  } else if (frequency === "week") {
+    const targetDay = ["sun","mon","tue","wed","thu","fri","sat"].indexOf(dayOfWeek);
+    if (date.getDay() !== targetDay) {
+      date.setDate(date.getDate() + ((7 - date.getDay() + targetDay) % 7));
+    } else {
+      date.setDate(date.getDate() + 7);
+    }
+  } else if (frequency === "month") {
+    date.setMonth(date.getMonth() + 1);
+    if (dayOfMonth && dayOfMonth !== "last") {
+      date.setDate(Math.min(Number(dayOfMonth), new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate()));
+    } else if (dayOfMonth === "last") {
+      date.setDate(new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate());
+    }
+  } else if (frequency === "year") {
+    date.setFullYear(date.getFullYear() + 1);
+  }
+
+  // Convert back to YYYY-MM-DD string
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function toggleExpenseInputs() {
+  const category = document.getElementById("category").value;
+  const isMileage = category === "Mileage";
+
+  document.getElementById("expense_amount_label").style.display = isMileage ? "none" : "";
+  document.getElementById("expense_amount_group").style.display = isMileage ? "none" : "";
+  document.getElementById("miles_group").style.display = isMileage ? "" : "none";
+  document.getElementById("miles_label").style.display = isMileage ? "" : "none";
+
+  document.getElementById("expense_percentage_label").style.display = isMileage ? "none" : "";
+  document.getElementById("expense_percentage_group").style.display = isMileage ? "none" : "";
+  document.getElementById("passengers_group").style.display = isMileage ? "" : "none";
+  document.getElementById("passengers_label").style.display = isMileage ? "" : "none";
+}
+
+// File functions
+function exportCSV(){
+  let rows=["id,date,type,amount,notes,empeepension,emperpension,percentage,category"];
+  records.forEach(r=>{
+    rows.push(`${r.id},${r.date},${r.type},${r.amount},${r.notes},${r.empee},${r.emper},${r.percentage},${r.category}`);
+  });
+
+  const blob = new Blob([rows.join("\n")], {type:"text/csv"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "MakingTaxDigitalCalculator.csv";
+  a.click();
+}
+
+function exportExcel(){
+  if(!records || records.length===0){
+    return alert("No records to export");
+  }
+
+  // Group records by quarter
+  const groups = {};
+  records.forEach(r=>{
+    const q = getQuarter(r.date || "");
+    if(!groups[q]) groups[q] = [];
+    groups[q].push(r);
+  });
+
+  // Sort quarter keys chronologically descending (most recent first)
+  const quarterKeys = Object.keys(groups).sort((a,b)=>{
+    const pa = a.match(/^Q(\d)\s+(\d{4})$/) || [];
+    const pb = b.match(/^Q(\d)\s+(\d{4})$/) || [];
+    const qa = pa[1] ? Number(pa[1]) : 0;
+    const ya = pa[2] ? Number(pa[2]) : 0;
+    const qb = pb[1] ? Number(pb[1]) : 0;
+    const yb = pb[2] ? Number(pb[2]) : 0;
+    if(ya !== yb) return yb - ya;
+    return qb - qa;
+  });
+
+  const workbook = XLSX.utils.book_new();
+
+  quarterKeys.forEach(q=>{
+    const rows = [["ID","Date","Type","Amount","Notes","EmpEE Pension","EmpER Pension","Percentage","Category"]];
+    // sort records in this quarter by date desc
+    groups[q].sort((a,b)=> new Date(b.date) - new Date(a.date)).forEach(r=>{
+      rows.push([
+        r.id || "",
+        r.date || "",
+        r.type || "",
+        r.amount != null ? r.amount : "",
+        r.notes || "",
+        r.empee != null ? r.empee : 0,
+        r.emper != null ? r.emper : 0,
+        r.percentage != null ? r.percentage : "",
+        r.category || ""
+      ]);
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // sheet name max length 31, truncate if necessary
+    const safeName = q.replace(/\//g, "_");
+    const sheetName = safeName.length > 31 ? safeName.slice(0,31) : safeName;
+    XLSX.utils.book_append_sheet(workbook, ws, sheetName);
+  });
+
+  XLSX.writeFile(workbook, "MakingTaxDigitalCalculator.xlsx");
+}
+
+function importRecords(e){
+ const file = e.target.files[0];
+ if(!file) return;
+
+ const reader = new FileReader();
+
+ function processCSVText(text){
+   const cleaned = text.trim();
+   const lines = cleaned.split(/\r?\n/);
+   if(lines.length < 2){
+     alert("CSV file is empty or invalid");
+     return;
+   }
+
+   let headers = lines[0].split(",").map(h=>h.replace(/\s/g,'').replace(/^"|"$/g, '').toLowerCase());
+   headers[0] = headers[0].replace(/^\uFEFF/, ""); // strip BOM
+   if(headers.join() !== "id,date,type,amount,notes,empeepension,emperpension,percentage,category"){
+     alert("Invalid file format. Please upload a file exported from this app.");
+     return;
+   }
+
+   let existingIDs = new Set(records.map(r=>r.id));
+   let added=0;
+
+   lines.slice(1).forEach(line=>{
+       if(!line.trim()) return;
+
+       let [id,d,t,a,n,ee,er,p,c] = line.split(",");
+
+       // generate ID if missing
+       if(!id) id = makeID();
+       // skip duplicates
+       if(existingIDs.has(id)) return;
+
+       records.push({
+         id:id,
+         date:d,
+         type:t,
+         amount:parseFloat(a),
+         notes:n,
+         empee:parseFloat(ee),
+         emper:parseFloat(er),
+         percentage:parseFloat(p),
+         category: c
+       });
+
+       existingIDs.add(id);
+       added++;
+   });
+
+   save();
+   renderTable('income');
+   renderTable('expense');
+   renderSummary();
+   renderPivotTable(records);
+
+   alert(`${added} new records imported`);
+ }
+
+ // Excel file (xlsx/xls) -> ask user to choose sheet
+ if(file.name.match(/\.(xlsx|xls|xlsm)$/i)){
+   reader.onload = function(evt){
+     const data = new Uint8Array(evt.target.result);
+     const workbook = XLSX.read(data, {type: 'array'});
+     const sheetNames = workbook.SheetNames;
+     if(!sheetNames || sheetNames.length===0){
+       alert("No sheets found in workbook");
+       return;
+     }
+
+     let sheetIndex = 0;
+     if(sheetNames.length > 1){
+       const choices = sheetNames.map((s,i)=>`${i+1}) ${s}`).join("\n");
+       const ans = prompt(`Select sheet to import:\n${choices}\nEnter sheet number:`);
+       if(ans === null) return;
+       sheetIndex = parseInt(ans,10) - 1;
+       if(isNaN(sheetIndex) || sheetIndex < 0 || sheetIndex >= sheetNames.length){
+         alert("Invalid sheet selection");
+         return;
+       }
+     }
+
+     const sheet = workbook.Sheets[sheetNames[sheetIndex]];
+     const csv = XLSX.utils.sheet_to_csv(sheet);
+     processCSVText(csv);
+   };
+   reader.readAsArrayBuffer(file);
+ } else {
+   // assume CSV/text
+   reader.onload = function(evt){
+     processCSVText(String(evt.target.result));
+   };
+   reader.readAsText(file);
+ }
+}
+
+// Record functions
+function addRecord(type) {
+  const addedRecords = [];
+
+  if (document.getElementById(`${type}_recurringCheck`).checked) {
+    const frequency = document.getElementById(`${type}_frequency`).value;
+    const endDateStr = document.getElementById(`${type}_frequency_end_date`).value;
+    const dayOfWeek = document.getElementById(`${type}_frequency_day`).value;
+    const dayOfMonth = document.getElementById(`${type}_frequency_dom_choice`).value;
+
+    if (!frequency || !endDateStr) {
+      return alert("Please select frequency and end date for recurring record.");
+    }
+
+    let currentDateStr = document.getElementById(`${type}_date`).value;
+    const finalDateStr = endDateStr;
+
+    while (currentDateStr <= finalDateStr) {
+      const added = addSingleRecord(type, currentDateStr);
+      if (!added) break;
+      addedRecords.push(currentDateStr);
+      currentDateStr = getNextDate(currentDateStr, frequency, dayOfWeek, dayOfMonth);
+    }
+  } else {
+    const added = addSingleRecord(type);
+    if (added) addedRecords.push(document.getElementById(`${type}_date`).value);
+  }
+
+  if (addedRecords.length > 0) {
+    const recordList = addedRecords.map(date => `  • ${date}`).join("\n");
+    alert(`Successfully added ${addedRecords.length} record(s):\n\n${recordList}`);
+  }
+
+  renderTable(type);
+  renderSummary();
+  renderPivotTable(records);
+}
+
+function addSingleRecord(type, dateOverride) {
+  const recordDate = dateOverride || document.getElementById(`${type}_date`).value;
+  const enteredDate = new Date(recordDate);
+  const enteredTaxYear = getTaxYearForDate(enteredDate);
+  const currentTaxYear = getCurrentTaxYear();
+
+  if (records.length === 0) {
+    // No existing records — this is the first record
+    if (enteredTaxYear.label !== currentTaxYear.label) {
+      // Date is outside the current tax year — ask the user what to do
+      const changeTaxYear = confirm(
+        `The date entered is in the ${enteredTaxYear.label} tax year, not the current tax year (${currentTaxYear.label}).` +
+        `\n\nPress OK to switch to the ${enteredTaxYear.label} tax year and add this record, or Cancel to abort.`
+      );
+      if (!changeTaxYear) return false;
+      activeTaxYear = enteredTaxYear;
+      updateTaxYearHeader();
+    } else {
+      // Date is in the current tax year — set it as active
+      activeTaxYear = currentTaxYear;
+      updateTaxYearHeader();
+    }
+  } else {
+    // Existing records — enforce the active tax year
+    if (!activeTaxYear) activeTaxYear = getCurrentTaxYear();
+
+    if (enteredDate < activeTaxYear.start || enteredDate > activeTaxYear.end) {
+      alert(
+        `Existing records are for the ${activeTaxYear.label} tax year.\n\n` +
+        `Please enter a date between 6 April ${activeTaxYear.start.getFullYear()} and 5 April ${activeTaxYear.end.getFullYear()}.`
+      );
+      return false;
+    }
+  }
+
+  const r = {
+    id:makeID(),
+    type: type,
+    amount: Number(document.getElementById(`${type}_amount`).value),
+    notes: document.getElementById(`${type}_notes`).value.trim() || "",
+    date: recordDate
+  };
+  if(type === "income"){
+    r.empee = Number(empee.value);
+    r.emper = Number(emper.value);
+    r.category = "";
+    r.percentage = 100;
+  }
+  else if(type === "expense"){
+    var cat = document.getElementById(`category`).value;
+    r.empee = 0;
+    r.emper = 0;
+    if (cat === "Mileage"){
+      var rate = 0.4 + (Number(document.getElementById(`passengers`).value) * 0.05)
+      r.category = "Travel";
+      r.percentage = 100;
+      r.amount = Number((Number(document.getElementById("miles").value) * rate).toFixed(2));
+    }
+    else {
+      r.category = cat;
+      r.percentage = Number(document.getElementById(`${type}_percentage`).value);
+    }
+  }
+
+ if(!r.amount || !r.date) return alert("Enter date and amount");
+
+ records.push(r);
+ save();
+ return true
+}
+
+function deleteRecord(id){
+  const index = records.findIndex(r => r.id === id);
+  if(index === -1) return;
+
+  records.splice(index, 1);
+
+  save();
+  renderTable('income');
+  renderTable('expense');
+  renderSummary();
+}
+
+function duplicateRecord(id){
+  const recordToDuplicate = records.find(r => r.id === id);
+  if (recordToDuplicate.type === "income") {
+    income_amount.value = recordToDuplicate.amount;
+    income_notes.value = recordToDuplicate.notes;
+    empee.value = recordToDuplicate.empee;
+    emper.value = recordToDuplicate.emper;
+  } else if (recordToDuplicate.type === "expense") {
+    expense_amount.value = recordToDuplicate.amount;
+    expense_notes.value = recordToDuplicate.notes;
+    expense_percentage.value = recordToDuplicate.percentage;
+    category.value = recordToDuplicate.category;
+  }
+  toggleExpenseInputs();
+}
+
+function getQuarterColor(quarter) {
+  const colors = {
+    "Q1": "#e3f2fd", // light blue
+    "Q2": "#e8f5e9", // light green
+    "Q3": "#fff3e0", // light orange
+    "Q4": "#f3e5f5"  // light purple
+  };
+  
+  const match = quarter.match(/^Q(\d)/);
+  if (!match) return "#ffffff";
+  
+  const q = `Q${match[1]}`;
+  return colors[q] || "#ffffff";
+}
+
+function getQuarterColorDark(quarter) {
+  const colors = {
+    "Q1": "#bbdefb", // darker blue
+    "Q2": "#c8e6c9", // darker green
+    "Q3": "#ffe0b2", // darker orange
+    "Q4": "#e1bee7"  // darker purple
+  };
+  
+  const match = quarter.match(/^Q(\d)/);
+  if (!match) return "#f5f5f5";
+  
+  const q = `Q${match[1]}`;
+  return colors[q] || "#f5f5f5";
+}
+
+function renderTable(table){
+  const body = document.getElementById(`${table}_tableBody`);
+  body.innerHTML = "";
+
+  const quarterFilter = document.getElementById(`${table}_filterQuarter`)?.value;
+  const notesFilter = document.getElementById(`${table}_filterNotes`).value.toLowerCase();
+  const categoryFilterEl = document.getElementById(`${table}_filterCategory`);
+  const categoryFilter = categoryFilterEl ? categoryFilterEl.value.toLowerCase() : "";
+
+  const filteredRecords = records.filter(r => {
+    if(quarterFilter && getQuarter(r.date) !== quarterFilter) return false;
+    if(notesFilter && !r.notes.toLowerCase().includes(notesFilter)) return false;
+    if(categoryFilter && !r.category.toLowerCase().includes(categoryFilter)) return false;
+    return true;
+  });
+
+  let displayRecords = [...filteredRecords];
+  displayRecords = displayRecords.filter(r => r.type === table);
+  displayRecords.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  if (table === "income") {
+    displayRecords.forEach((r, i) => {
+      const quarter = getQuarter(r.date);
+      const bgColor = i % 2 === 0 ? getQuarterColor(quarter) : getQuarterColorDark(quarter);
+      body.innerHTML += `
+      <tr style="background-color: ${bgColor}; !important">
+        <td style="background-color: ${bgColor}; !important"><input type="date" class="form-control form-control-sm" value="${r.date}" onchange="update('${r.id}','date',this.value)"></td>
+        <td class="text-end" style="background-color: ${bgColor}; !important"><input type="number" class="form-control form-control-sm text-end" value="${r.amount}" onchange="update('${r.id}','amount',this.value)"></td>
+        <td class="text-end" style="background-color: ${bgColor}; !important"><input type="number" class="form-control form-control-sm text-end" value="${r.empee}" onchange="update('${r.id}','empee',this.value)"></td>
+        <td class="text-end" style="background-color: ${bgColor}; !important"><input type="number" class="form-control form-control-sm text-end" value="${r.emper}" onchange="update('${r.id}','emper',this.value)"></td>
+        <td style="background-color: ${bgColor}; !important"><input type="text" class="form-control form-control-sm" value="${r.notes}" placeholder="Optional" onchange="update('${r.id}','notes',this.value)"></td>
+        <td style="background-color: ${bgColor}; !important">
+          <button class="btn btn-sm btn-primary" style="background-color:#4c3470;border-color:#4c3470;" onclick="duplicateRecord('${r.id}')">Copy</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">Delete</button>
+        </td>
+      </tr>`;
+    });
+  } else if (table === "expense") {
+    displayRecords.forEach((r, i) => {
+      const quarter = getQuarter(r.date);
+      const bgColor = i % 2 === 0 ? getQuarterColor(quarter) : getQuarterColorDark(quarter);
+      const chargeableAmount = ((Number(r.amount) || 0) * (Number(r.percentage) || 0) / 100).toFixed(2);
+      body.innerHTML += `
+      <tr style="background-color: ${bgColor} !important;">
+        <td style="background-color: ${bgColor}; !important"><input type="date" class="form-control form-control-sm" value="${r.date}" onchange="update('${r.id}','date',this.value)"></td>
+        <td style="background-color: ${bgColor}; !important" class="text-end"><input type="number" class="form-control form-control-sm text-end" value="${r.amount}" onchange="update('${r.id}','amount',this.value)"></td>
+        <td style="background-color: ${bgColor}; !important" class="text-end"><input type="number" class="form-control form-control-sm text-end" value="${r.percentage}" onchange="update('${r.id}','percentage',this.value)"></td>
+        <td style="background-color: ${bgColor}; !important" class="text-end">£${chargeableAmount}</td>
+        <td style="background-color: ${bgColor}; !important">
+          <select class="form-select form-select-sm" onchange="update('${r.id}','category',this.value)">
+            <option ${r.category=="Other"?"selected":""}>Other</option>
+            <option ${r.category=="Travel"?"selected":""}>Travel</option>
+            <option ${r.category=="Prof. Fees"?"selected":""}>Prof. Fees</option>
+            <option ${r.category=="Office"?"selected":""}>Office</option>
+            <option ${r.category=="Rent/Bills"?"selected":""}>Rent/Bills</option>
+            <option ${r.category=="Banking"?"selected":""}>Banking</option>
+            <option ${r.category=="Repairs"?"selected":""}>Repairs</option>
+            <option ${r.category=="Goods Sold"?"selected":""}>Goods Sold</option>
+            <option ${r.category=="Staffing"?"selected":""}>Staffing</option>
+            <option ${r.category=="Advertising"?"selected":""}>Advertising</option>
+            <option ${r.category=="Insurance"?"selected":""}>Insurance</option>
+          </select>
+        </td>
+        <td style="background-color: ${bgColor}; !important"><input type="text" class="form-control form-control-sm" value="${r.notes}" placeholder="Optional" onchange="update('${r.id}','notes',this.value)"></td>
+        <td style="background-color: ${bgColor}; !important">
+          <button class="btn btn-sm btn-primary" style="background-color:#4c3470;border-color:#4c3470;" onclick="duplicateRecord('${r.id}')">Copy</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteRecord('${r.id}')">Delete</button>
+        </td>
+      </tr>`;
+    });
+  }
+}
+
+function clearFilters(table){
+  document.querySelectorAll(`#${table} thead input, #${table} thead select`)
+  .forEach(el=>el.value="");
+  renderTable(table);
+}
+
+function deleteAllRecords(type){
+  if(!confirm(`Are you sure you want to delete all ${type} records? This cannot be undone.`)) return;
+  records = records.filter(r=>r.type !== type);
+  save();
+  renderTable(type);
+  renderSummary();
+  renderPivotTable(records);
+}
+
+// Dashboard functions
+function buildPivotData(records){
+  const pivot = {};
+
+  records.forEach(r=>{
+    const quarter = getQuarter(r.date);
+    const type = r.type === "income" ? "Income" : "Expenses";
+    const notes = r.notes || "Uncategorised";
+    const amount = parseFloat(r.amount) || 0;
+    const percentage = (parseFloat(r.percentage) || 100) / 100;
+    const taxableAmount = amount * percentage;
+
+    if(!pivot[quarter]) pivot[quarter] = {};
+    if(!pivot[quarter][type]) pivot[quarter][type] = {};
+
+    // For expenses, nest by category then notes
+    if (r.type === "expense") {
+      const category = r.category || "Other";
+      if(!pivot[quarter][type][category]) pivot[quarter][type][category] = {};
+      if(!pivot[quarter][type][category][notes]) pivot[quarter][type][category][notes] = { total: 0, taxable: 0 };
+      pivot[quarter][type][category][notes].total += amount;
+      pivot[quarter][type][category][notes].taxable += taxableAmount;
+    } else {
+      // For income, group by notes (no category)
+      if(!pivot[quarter][type][notes]) pivot[quarter][type][notes] = { total: 0, taxable: 0 };
+      pivot[quarter][type][notes].total += amount;
+      pivot[quarter][type][notes].taxable += taxableAmount;
+    }
+
+    // For income, also add pensions as separate line items
+    if (r.type === "income") {
+      const empee = parseFloat(r.empee) || 0;
+      const emper = parseFloat(r.emper) || 0;
+      
+      if (empee > 0) {
+        const pensionKey = "Employee Pension";
+        if(!pivot[quarter][type][pensionKey]) pivot[quarter][type][pensionKey] = { total: 0, taxable: 0 };
+        pivot[quarter][type][pensionKey].total += empee;
+        pivot[quarter][type][pensionKey].taxable += empee;
+      }
+      
+      if (emper > 0) {
+        const pensionKey = "Employer Pension";
+        if(!pivot[quarter][type][pensionKey]) pivot[quarter][type][pensionKey] = { total: 0, taxable: 0 };
+        pivot[quarter][type][pensionKey].total += emper;
+        pivot[quarter][type][pensionKey].taxable += emper;
+      }
+    }
+  });
+
+  return pivot;
+}
+
+function renderPivotTable(records){
+  const pivot = buildPivotData(records);
+  const container = document.getElementById("pivotTableContainer");
+
+  let html = `<div class="table-responsive">`;
+
+  // Sort quarters in descending chronological order (most recent first)
+  const sortedQuarters = Object.keys(pivot).sort((a, b) => {
+    const pa = a.match(/^Q(\d)\s+(\d{4})$/) || [];
+    const pb = b.match(/^Q(\d)\s+(\d{4})$/) || [];
+    const qa = pa[1] ? Number(pa[1]) : 0;
+    const ya = pa[2] ? Number(pa[2]) : 0;
+    const qb = pb[1] ? Number(pb[1]) : 0;
+    const yb = pb[2] ? Number(pb[2]) : 0;
+    if (ya !== yb) return yb - ya;       // newer year first
+    return qb - qa;                      // within same year, higher quarter first
+  });
+
+  sortedQuarters.forEach(q=>{
+
+    html += `
+      <div class="card">
+      <h4 class="card-header" style="background-color: #4c3470; color: white;">${q}</h4>
+      <table class="table table-bordered mb-4">
+      <thead class="table-dark">
+        <tr><th>Description</th><th class="text-end">Total Amount</th><th class="text-end">Claimable Amount</th></tr>
+      </thead>
+      <tbody>
+    `;
+
+    Object.keys(pivot[q]).forEach(type=>{
+
+      let typeTotal = 0;
+      let typeTaxable = 0;
+      const typeData = pivot[q][type];
+
+      // Check if this is expenses (nested by category) or income (flat)
+      const isExpenseType = type === "Expenses";
+
+      if (isExpenseType) {
+        html += `
+        <tr class="table-secondary">
+          <td colspan="3" style="background-color:#7a2e2c;color:white;"><strong>${type}</strong></td>
+        </tr>
+      `;
+        // Expenses grouped by category, then notes
+        Object.keys(typeData).sort().forEach(category=>{
+          let categoryTotal = 0;
+          let categoryTaxable = 0;
+
+          html += `
+            <tr class="table-light">
+              <td style="padding-left: 2rem;"><strong>${category}</strong></td>
+              <td></td>
+              <td></td>
+            </tr>
+          `;
+
+          Object.keys(typeData[category]).forEach(notes=>{
+            const val = Number(typeData[category][notes].total);
+            const taxableVal = Number(typeData[category][notes].taxable);
+            categoryTotal += val;
+            categoryTaxable += taxableVal;
+            typeTotal += val;
+            typeTaxable += taxableVal;
+
+            html += `
+              <tr>
+                <td style="padding-left: 4rem;">${notes}</td>
+                <td class="text-end">£${val.toFixed(2)}</td>
+                <td class="text-end">£${taxableVal.toFixed(2)}</td>
+              </tr>
+            `;
+          });
+
+          html += `
+            <tr>
+              <td class="text-end" style="padding-left: 2rem;"><strong>${category} Subtotal</strong></td>
+              <td class="text-end"><strong>£${categoryTotal.toFixed(2)}</strong></td>
+              <td class="text-end"><strong>£${categoryTaxable.toFixed(2)}</strong></td>
+            </tr>
+          `;
+        });
+        html += `
+          <tr>
+            <td class="text-end" style="background-color: #f4cccc;"><strong>${q} ${type} Total</strong></td>
+            <td class="text-end" style="background-color: #f4cccc;"><strong>£${typeTotal.toFixed(2)}</strong></td>
+            <td class="text-end" style="background-color: #f4cccc;"><strong>£${typeTaxable.toFixed(2)}</strong></td>
+          </tr>
+        `;
+      } else {
+        html += `
+          <tr class="table-secondary">
+            <td colspan="3" style="background-color:#366954;color:white;"><strong>${type}</strong></td>
+          </tr>
+        `;
+        // Income grouped by notes only
+        Object.keys(typeData).forEach(notes=>{
+          const val = Number(typeData[notes].total);
+          const taxableVal = Number(typeData[notes].taxable);
+          typeTotal += val;
+          typeTaxable += taxableVal;
+
+          html += `
+            <tr>
+              <td>${notes}</td>
+              <td colspan="2" style="text-align: right;">£${val.toFixed(2)}</td>
+            </tr>
+          `;
+        });
+        html += `
+          <tr>
+            <td class="text-end" style="background-color: #d9ead3;"><strong>${q} ${type} Total</strong></td>
+            <td class="text-end" style="background-color: #d9ead3;" colspan="2"><strong>£${typeTotal.toFixed(2)}</strong></td>
+          </tr>
+        `;
+      }
+
+
+    });
+
+    html += `</tbody></table></div><br>`;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function renderSummary(){
+ let totalIncome = 0;
+ let totalPensions = 0;
+ let incomeFromWork = 0;
+ let totalExpense = 0;
+ let taxableExpense = 0;
+
+ records.filter(r => r.type === "income").forEach(r => {
+   const amount = r.amount || 0;
+   const pensions = (r.empee || 0) + (r.emper || 0);
+   
+   incomeFromWork += amount;
+   totalPensions += pensions;
+   totalIncome += amount + pensions;
+ });
+
+ records.filter(r => r.type === "expense").forEach(r => {
+   const amount = r.amount || 0;
+   const percentage = (r.percentage || 100) / 100;
+   
+   totalExpense += amount;
+   taxableExpense += amount * percentage;
+ });
+
+ let profit = totalIncome - totalExpense;
+ let taxableProfit = totalIncome - taxableExpense;
+
+ document.getElementById("summary").innerHTML=`
+ <div>
+   <strong>Income Breakdown:</strong><br>
+   &nbsp;&nbsp;Income from work: <strong>£${incomeFromWork.toFixed(2)}</strong><br>
+   &nbsp;&nbsp;Pensions: <strong>£${totalPensions.toFixed(2)}</strong><br>
+   Total Income: <strong>£${totalIncome.toFixed(2)}</strong><br>
+   <br>
+   Total Expenses: <strong>£${totalExpense.toFixed(2)}</strong><br>
+   Claimable Expenses: <strong>£${taxableExpense.toFixed(2)}</strong><br>
+   <br>
+   Total Profit: <strong>£${profit.toFixed(2)}</strong><br>
+   Taxable Profit: <strong>£${taxableProfit.toFixed(2)}</strong>
+ </div>
+ `;
+ populateQuarterFilters();
+}
+
+renderTable('income');
+renderTable('expense');
+renderSummary();
+renderPivotTable(records);
+updateTaxYearHeader()
+
+window.addEventListener("beforeunload", function (e) {
+    if (records.length > 0) {
+        const confirmationMessage = "You have unsaved changes. Make sure to download your CSV to avoid losing data.";
+        e.returnValue = confirmationMessage; // For modern browsers
+        return confirmationMessage;          // For older browsers
+    }
+});
+
+// Income filter listeners
+document.getElementById("income_filterQuarter").addEventListener("change", () => renderTable('income'));
+document.getElementById("income_filterNotes").addEventListener("input", () => renderTable('income'));
+
+// Expense filter listeners
+document.getElementById("expense_filterQuarter").addEventListener("change", () => renderTable('expense'));
+document.getElementById("expense_filterNotes").addEventListener("input", () => renderTable('expense'));
+document.getElementById("expense_filterCategory").addEventListener("input", () => renderTable('expense'));
+
+
+// Frequency selection for recurring records
+document.getElementById("income_frequency").addEventListener("change", function() {
+  const day = document.getElementById("income_frequency_day");
+  const freqOn = document.getElementById("income_freq_on");
+  const domChoice = document.getElementById("income_frequency_dom_choice");
+  const domLabel = document.getElementById("income_frequency_dom");
+  if (this.value === "week") {
+    day.style.display = "inline-block";
+    day.style.width = "auto";
+    freqOn.style.display = "inline-block";
+    domChoice.style.display = "none";
+    domLabel.style.display = "none";
+  } else if (this.value=== "month") {
+    day.style.display = "none";
+    freqOn.style.display = "inline-block";
+    domChoice.style.display = "inline-block";
+    domLabel.style.display = "inline-block";
+  } else {
+    day.style.display = "none";
+    freqOn.style.display = "none";
+    domChoice.style.display = "none";
+    domLabel.style.display = "none";
+  }
+});
+document.getElementById("expense_frequency").addEventListener("change", function() {
+  const day = document.getElementById("expense_frequency_day");
+  const freqOn = document.getElementById("expense_freq_on");
+  const domChoice = document.getElementById("expense_frequency_dom_choice");
+  const domLabel = document.getElementById("expense_frequency_dom");
+  if (this.value === "week") {
+    day.style.display = "inline-block";
+    day.style.width = "auto";
+    freqOn.style.display = "inline-block";
+    domChoice.style.display = "none";
+    domLabel.style.display = "none";
+  } else if (this.value=== "month") {
+    day.style.display = "none";
+    freqOn.style.display = "inline-block";
+    domChoice.style.display = "inline-block";
+    domLabel.style.display = "inline-block";
+  } else {
+    day.style.display = "none";
+    freqOn.style.display = "none";
+    domChoice.style.display = "none";
+    domLabel.style.display = "none";
+  }
+});
+
+// Mileage listener
+document.getElementById("category").addEventListener("change", toggleExpenseInputs);
+
+</script>
+
+</body>
+</html>
