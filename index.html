@@ -907,6 +907,7 @@ function addSingleRecord(type, dateOverride) {
   }
 
   if(!r.amount || !r.date) return alert("Enter date and amount");
+
   if (records.length === 0) {
     // No existing records — this is the first record
     if (enteredTaxYear.label !== currentTaxYear.label) {
@@ -934,7 +935,7 @@ function addSingleRecord(type, dateOverride) {
       );
       return false;
     }
-  }
+  };
 
   records.push(r);
   save();
@@ -1320,7 +1321,7 @@ updateTaxYearHeader()
 
 window.addEventListener("beforeunload", function (e) {
     if (records.length > 0) {
-        const confirmationMessage = "You have unsaved changes. Make sure to download your CSV to avoid losing data.";
+        const confirmationMessage = "You have unsaved changes. Make sure to download your records to avoid losing data.";
         e.returnValue = confirmationMessage; // For modern browsers
         return confirmationMessage;          // For older browsers
     }
